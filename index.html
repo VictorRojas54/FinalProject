@@ -15,8 +15,8 @@
         <canvas id="gameCanvas"></canvas>
         <div id="score">Time: 0 | Pipes Passed: 0</div>
     </div>
-    
-    <img id="saveIcon" src="images/save.png" alt="Save" />
+
+    <img id="saveIcon" src="Images/save.png" alt="Save" />
 
     <script>
         // Firebase Configuration
@@ -75,12 +75,12 @@
         const pipeImages = [];
         for (let i = 1; i <= 10; i++) {
             const pipeImg = new Image();
-            pipeImg.src = `./images/pipe${i}.png`;
+            pipeImg.src = `./Images/pipe${i}.png`;
             pipeImages.push(pipeImg);
         }
 
-        marioImage.src = './images/mario.png';
-        backgroundImage.src = './images/background.png';
+        marioImage.src = './Images/mario.png';
+        backgroundImage.src = './Images/background.png';
 
         Promise.all([
             new Promise((resolve) => marioImage.onload = resolve),
