@@ -15,6 +15,7 @@ body {
     flex-direction: column;
     justify-content: flex-start;
     align-items: center;
+    position: relative; /* Allows absolute positioning of save icon */
 }
 
 #gameCanvas {
@@ -26,4 +27,12 @@ body {
     font-size: 24px;
     color: #333;
     margin-bottom: 10px;
+}
+
+#saveIcon {
+    position: absolute;
+    bottom: -10px;  /* Position it below the canvas */
+    right: -10px;   /* Position it to the right of the canvas */
+    width: 40px;    /* Set the size of the save icon */
+    height: 40px;
 }
