@@ -10,7 +10,7 @@ canvas.height = canvasHeight;
 
 // Loads mario and background images
 const marioImage = new Image();
-marioImage.src = 'images/Mario-idle.png';
+marioImage.src = 'images/mario.png';
 
 const backgroundImage = new Image();
 backgroundImage.src = 'images/background.png';
