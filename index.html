@@ -4,20 +4,226 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jumping Game</title>
-
     <link rel="stylesheet" href="style.css">
-
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-auth-compat.js"></script>
 </head>
 <body>
     <div id="gameContainer">
-
         <canvas id="gameCanvas"></canvas>
         <div id="score">Time: 0 | Pipes Passed: 0</div>
-        
     </div>
 
     <img id="saveIcon" src="images/save.png" alt="Save" />
 
-    <script src="script.js"></script>
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyA4edTRj06oSzlL_1esSWQ5gl4MY-TXskM",
+            authDomain: "finalprojectjg-a4b48.firebaseapp.com",
+            projectId: "finalprojectjg-a4b48",
+            storageBucket: "finalprojectjg-a4b48.firebasestorage.app",
+            messagingSenderId: "106369143084",
+            appId: "1:106369143084:web:a84874339c78bd9cf79c89",
+            measurementId: "G-XRHNNWM6JP"
+        };
+
+        // Initialize Firebase
+        const firebaseApp = firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebaseApp.auth();
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreDisplay = document.getElementById('score');
+        const saveIcon = document.getElementById('saveIcon');
+
+        const canvasWidth = 800;
+        const canvasHeight = 400;
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+
+        let score = 0;
+        let pipesPassed = 0;
+        let gameOver = false;
+        let lastTime = 0;
+        let gameStartTime = 0;
+
+        const mario = {
+            x: 50,
+            y: canvasHeight - 70,
+            width: 50,
+            height: 50,
+            jumpHeight: 18,
+            velocityY: 0,
+            gravity: 0.6,
+            isJumping: false
+        };
+
+        const pipes = [];
+        const pipeWidth = 50;
+        const pipeSpeed = 3;
+        const maxPipeHeight = 150;
+        const minPipeHeight = 50;
+        let lastPipeSpawnTime = 0;
+        const pipeSpawnInterval = 3000;
+
+        const marioImage = new Image();
+        const backgroundImage = new Image();
+        const pipeImages = [];
+        for (let i = 1; i <= 10; i++) {
+            const pipeImg = new Image();
+            pipeImg.src = `./images/pipe${i}.png`;
+            pipeImages.push(pipeImg);
+        }
+
+        marioImage.src = './images/mario.png';
+        backgroundImage.src = './images/background.png';
+
+        Promise.all([
+            new Promise((resolve) => marioImage.onload = resolve),
+            new Promise((resolve) => backgroundImage.onload = resolve),
+            ...pipeImages.map(pipeImg => new Promise((resolve) => pipeImg.onload = resolve))
+        ])
+        .then(() => {
+            gameStartTime = performance.now();
+            requestAnimationFrame(update);
+        })
+        .catch(error => {
+            console.error("Error loading images:", error);
+        });
+
+        function update(timestamp) {
+            if (gameOver) return;
+
+            const deltaTime = timestamp - lastTime;
+            lastTime = timestamp;
+
+            mario.y += mario.velocityY;
+            mario.velocityY += mario.gravity;
+
+            if (mario.y > canvasHeight - mario.height) {
+                mario.y = canvasHeight - mario.height;
+                mario.velocityY = 0;
+                mario.isJumping = false;
+            }
+
+            pipes.forEach(pipe => {
+                pipe.x -= pipeSpeed;
+
+                if (pipe.x + pipeWidth < mario.x && !pipe.passed) {
+                    pipe.passed = true;
+                    pipesPassed += 1;
+                }
+
+                if (pipe.x + pipeWidth < 0) {
+                    pipes.shift();
+                }
+            });
+
+            pipes.forEach(pipe => {
+                if (mario.x + mario.width > pipe.x && mario.x < pipe.x + pipeWidth) {
+                    if (mario.y + mario.height > pipe.y) {
+                        gameOver = true;
+                    }
+                }
+            });
+
+            if (timestamp - lastPipeSpawnTime > pipeSpawnInterval) {
+                lastPipeSpawnTime = timestamp;
+                const bottomPipeHeight = Math.floor(Math.random() * (maxPipeHeight - minPipeHeight)) + minPipeHeight;
+                const randomPipeImage = pipeImages[Math.floor(Math.random() * pipeImages.length)];
+                pipes.push({
+                    x: canvasWidth,
+                    y: canvasHeight - bottomPipeHeight,
+                    image: randomPipeImage,
+                    height: bottomPipeHeight,
+                    passed: false
+                });
+            }
+
+            if (!gameOver) {
+                score = Math.floor((timestamp - gameStartTime) / 1000);
+            }
+
+            draw();
+            requestAnimationFrame(update);
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+            ctx.drawImage(backgroundImage, 0, 0, canvasWidth, canvasHeight);
+            ctx.drawImage(backgroundImage, canvasWidth, 0, canvasWidth, canvasHeight);
+
+            if (marioImage.complete) {
+                ctx.drawImage(marioImage, mario.x, mario.y, mario.width, mario.height);
+            }
+
+            pipes.forEach(pipe => {
+                if (pipe.image.complete) {
+                    ctx.drawImage(pipe.image, pipe.x, pipe.y, pipeWidth, pipe.height);
+                }
+            });
+
+            scoreDisplay.textContent = `Time: ${score} | Pipes Passed: ${pipesPassed}`;
+
+            if (gameOver) {
+                ctx.fillStyle = 'red';
+                ctx.font = '48px Arial';
+                const gameOverWidth = ctx.measureText('Game Over!').width;
+                ctx.fillText('Game Over!', (canvasWidth - gameOverWidth) / 2, canvasHeight / 2 - 20);
+
+                ctx.font = '24px Arial';
+                const restartMessage = "Press 'R' to Restart";
+                const restartMessageWidth = ctx.measureText(restartMessage).width;
+                ctx.fillText(restartMessage, (canvasWidth - restartMessageWidth) / 2, canvasHeight / 2 + 30);
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && !gameOver) {
+                jump();
+            }
+            if (e.code === 'KeyR' && gameOver) {
+                resetGame();
+            }
+        });
+
+        function jump() {
+            if (!mario.isJumping) {
+                mario.velocityY = -mario.jumpHeight;
+                mario.isJumping = true;
+            }
+        }
+
+        function resetGame() {
+            score = 0;
+            pipesPassed = 0;
+            mario.y = canvasHeight - 70;
+            mario.velocityY = 0;
+            mario.isJumping = false;
+            pipes.length = 0;
+            gameOver = false;
+            lastPipeSpawnTime = 0;
+            lastTime = 0;
+            gameStartTime = performance.now();
+            requestAnimationFrame(update);
+        }
+
+        saveIcon.addEventListener('click', function() {
+            if (!gameOver) return;
+            db.collection("highscores").add({
+                time: score,
+                pipesPassed: pipesPassed
+            }).then(() => {
+                alert("Score saved!");
+            }).catch(error => {
+                console.error("Error saving score: ", error);
+            });
+        });
+    </script>
 </body>
 </html>
