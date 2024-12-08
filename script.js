@@ -10,16 +10,16 @@ canvas.height = canvasHeight;
 
 // Loads mario and background images
 const marioImage = new Image();
-marioImage.src = 'images/mario.png';
+marioImage.src = './images/mario.png';
 
 const backgroundImage = new Image();
-backgroundImage.src = 'images/background.png';
+backgroundImage.src = './images/background.png';
 
 // Loads pipe images
 const pipeImages = [];
 for (let i = 1; i <= 10; i++) {
     const pipeImg = new Image();
-    pipeImg.src = `images/pipe${i}.png`;
+    pipeImg.src = `./images/pipe${i}.png`;
     pipeImages.push(pipeImg);
 }
 
