@@ -2,26 +2,19 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const scoreDisplay = document.getElementById('score');
+const saveIcon = document.getElementById('saveIcon');
 
 const canvasWidth = 800;
 const canvasHeight = 400;
 canvas.width = canvasWidth;
 canvas.height = canvasHeight;
 
-// Loads Mario and background images
-const marioImage = new Image();
-marioImage.src = './images/mario.png';
-
-const backgroundImage = new Image();
-backgroundImage.src = './images/background.png';
-
-// Loads pipe images
-const pipeImages = [];
-for (let i = 1; i <= 10; i++) {
-    const pipeImg = new Image();
-    pipeImg.src = `./images/pipe${i}.png`;
-    pipeImages.push(pipeImg);
-}
+// Game variables
+let score = 0;
+let pipesPassed = 0;
+let gameOver = false;
+let lastTime = 0;
+let gameStartTime = 0;
 
 // Game settings
 const mario = {
@@ -37,65 +30,72 @@ const mario = {
 
 const pipes = [];
 const pipeWidth = 50;
-let basePipeSpeed = 4; // Initial pipe speed
-let pipeSpeed = basePipeSpeed;
-let speedIncrement = 0.03; // Speed increase rate per second
-
-// Pipe height range
+const pipeSpeed = 3;
 const maxPipeHeight = 150;
 const minPipeHeight = 50;
 let lastPipeSpawnTime = 0;
 const pipeSpawnInterval = 3000;
 
-// Game Variables
-let score = 0; // Pipes passed
-let timeElapsed = 0; // Time in seconds
-let gameOver = false;
-let lastTime = 0;
-let gameStartTime = 0;
-
-// Mario jump function
-function jump() {
-    if (!mario.isJumping) {
-        mario.velocityY = -mario.jumpHeight;
-        mario.isJumping = true;
-    }
+// Image Loading
+const marioImage = new Image();
+const backgroundImage = new Image();
+const pipeImages = [];
+for (let i = 1; i <= 10; i++) {
+    const pipeImg = new Image();
+    pipeImg.src = `./images/pipe${i}.png`;
+    pipeImages.push(pipeImg);
 }
 
+marioImage.src = './images/mario.png';
+backgroundImage.src = './images/background.png';
+
+// Preload images before starting the game
+Promise.all([
+    new Promise((resolve) => marioImage.onload = resolve),
+    new Promise((resolve) => backgroundImage.onload = resolve),
+    ...pipeImages.map(pipeImg => new Promise((resolve) => pipeImg.onload = resolve))
+])
+.then(() => {
+    // Start the game once images are loaded
+    gameStartTime = performance.now();
+    requestAnimationFrame(update);
+})
+.catch(error => {
+    console.error("Error loading images:", error);
+});
+
+// Game update function
 function update(timestamp) {
     if (gameOver) return;
 
-    let deltaTime = timestamp - lastTime;
+    const deltaTime = timestamp - lastTime;
     lastTime = timestamp;
 
-    // Adds gravity to Mario
+    // Apply gravity to Mario
     mario.y += mario.velocityY;
     mario.velocityY += mario.gravity;
 
-    // Makes sure Mario doesn't fall off the screen
     if (mario.y > canvasHeight - mario.height) {
         mario.y = canvasHeight - mario.height;
         mario.velocityY = 0;
         mario.isJumping = false;
     }
 
-    // Moves the pipes
+    // Move pipes
     pipes.forEach(pipe => {
         pipe.x -= pipeSpeed;
 
-        // Check if Mario has passed the pipe (score increment logic)
         if (pipe.x + pipeWidth < mario.x && !pipe.passed) {
-            pipe.passed = true; // Mark this pipe as passed
-            score += 1; // Increment score for passing a pipe
+            pipe.passed = true;
+            pipesPassed += 1;
         }
 
-        // Remove pipes that are off the screen
         if (pipe.x + pipeWidth < 0) {
             pipes.shift();
         }
     });
 
-    // Collision detection for Mario and pipes
+    // Collision detection with pipes
     pipes.forEach(pipe => {
         if (mario.x + mario.width > pipe.x && mario.x < pipe.x + pipeWidth) {
             if (mario.y + mario.height > pipe.y) {
@@ -104,7 +104,7 @@ function update(timestamp) {
         }
     });
 
-    // Creates new pipes
+    // Spawn new pipes
     if (timestamp - lastPipeSpawnTime > pipeSpawnInterval) {
         lastPipeSpawnTime = timestamp;
         const bottomPipeHeight = Math.floor(Math.random() * (maxPipeHeight - minPipeHeight)) + minPipeHeight;
@@ -114,31 +114,27 @@ function update(timestamp) {
             y: canvasHeight - bottomPipeHeight,
             image: randomPipeImage,
             height: bottomPipeHeight,
-            passed: false // Track if this pipe has been passed
+            passed: false
         });
     }
 
-    // Calculate time elapsed (in seconds)
+    // Update score
     if (!gameOver) {
-        timeElapsed = Math.floor((timestamp - gameStartTime) / 1000);
-
-        // Gradually increase pipe speed over time
-        pipeSpeed = basePipeSpeed + timeElapsed * speedIncrement;
+        score = Math.floor((timestamp - gameStartTime) / 1000);
     }
 
-    // Update score display to show time and pipes passed
-    scoreDisplay.textContent = `Time: ${timeElapsed} | Pipes Passed: ${score}`;
-
+    // Draw everything
     draw();
     requestAnimationFrame(update);
 }
 
-// Draw all elements
+// Draw function
 function draw() {
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-    // Draw scrolling background
+    // Draw background
     ctx.drawImage(backgroundImage, 0, 0, canvasWidth, canvasHeight);
+    ctx.drawImage(backgroundImage, canvasWidth, 0, canvasWidth, canvasHeight);
 
     // Draw Mario
     if (marioImage.complete) {
@@ -152,7 +148,10 @@ function draw() {
         }
     });
 
-    // Display for game over and restart
+    // Display score and pipes passed
+    scoreDisplay.textContent = `Time: ${score} | Pipes Passed: ${pipesPassed}`;
+
+    // Show Game Over message
     if (gameOver) {
         ctx.fillStyle = 'red';
         ctx.font = '48px Arial';
@@ -166,7 +165,7 @@ function draw() {
     }
 }
 
-// Inputs for jumping and restarting
+// Keyboard event listener
 document.addEventListener('keydown', (e) => {
     if (e.code === 'Space' && !gameOver) {
         jump();
@@ -176,11 +175,18 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
+// Jump function
+function jump() {
+    if (!mario.isJumping) {
+        mario.velocityY = -mario.jumpHeight;
+        mario.isJumping = true;
+    }
+}
+
 // Reset game state
 function resetGame() {
     score = 0;
-    timeElapsed = 0;
-    pipeSpeed = basePipeSpeed; // Reset pipe speed
+    pipesPassed = 0;
     mario.y = canvasHeight - 70;
     mario.velocityY = 0;
     mario.isJumping = false;
@@ -191,14 +197,3 @@ function resetGame() {
     gameStartTime = performance.now();
     requestAnimationFrame(update);
 }
-
-// Waits for all the images before the game starts
-Promise.all([
-    new Promise((resolve) => marioImage.onload = resolve),
-    new Promise((resolve) => backgroundImage.onload = resolve),
-    ...pipeImages.map(pipeImg => new Promise((resolve) => pipeImg.onload = resolve))
-])
-.then(() => {
-    gameStartTime = performance.now();
-    requestAnimationFrame(update);
-});
