@@ -183,10 +183,6 @@ Promise.all([
     ...pipeImages.map(pipeImg => new Promise((resolve) => pipeImg.onload = resolve))
 ])
 .then(() => {
-    console.log('All images loaded, starting game...');
     gameStartTime = performance.now();
     requestAnimationFrame(update);
-})
-.catch(err => {
-    console.error('Error loading images:', err);
 });
